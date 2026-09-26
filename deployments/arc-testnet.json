@@ -1,0 +1,37 @@
+{
+  "status": "arc-testnet-template",
+  "canonical": true,
+  "notes": "StackUp Arc testnet manifest. Frontend and SDKs must read this file. Fill after forge script broadcast. Gas is paid in USDC on Arc.",
+  "network": "arc-testnet",
+  "chainId": 5042002,
+  "rpc": "https://rpc.testnet.arc.io",
+  "explorer": "https://testnet.arcscan.app",
+  "deployer": "0x0000000000000000000000000000000000000000",
+  "contracts": {
+    "stackUp": "0x0000000000000000000000000000000000000000",
+    "stackVault": "0x0000000000000000000000000000000000000000"
+  },
+  "shared": {
+    "usdc": "0x0000000000000000000000000000000000000000",
+    "borrowAprBps": 1000,
+    "maintenanceEquityRatioBps": 3000
+  },
+  "assets": [
+    {
+      "name": "sNVDA",
+      "symbol": "NVDA",
+      "assetId": 1,
+      "stock": "0x0000000000000000000000000000000000000000",
+      "priceAdapter": "0x0000000000000000000000000000000000000000",
+      "swapAdapter": "0x0000000000000000000000000000000000000000"
+    },
+    {
+      "name": "sAAPL",
+      "symbol": "AAPL",
+      "assetId": 2,
+      "stock": "0x0000000000000000000000000000000000000000",
+      "priceAdapter": "0x0000000000000000000000000000000000000000",
+      "swapAdapter": "0x0000000000000000000000000000000000000000"
+    }
+  ]
+}

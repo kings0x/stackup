@@ -1,0 +1,23 @@
+{
+  "name": "@stackup/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "16.3.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "viem": "^2.56.3"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^26",
+    "@types/react": "^19"
+  }
+}

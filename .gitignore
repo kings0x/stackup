@@ -1,0 +1,13 @@
+node_modules/
+.next/
+dist/
+out/
+.env.local
+.dynamic-agent-wallet.json
+contracts/lib/
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+apps/web/.next/
+*.log
+.DS_Store

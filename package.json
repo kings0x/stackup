@@ -1,0 +1,17 @@
+{
+  "name": "stackup",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": "22.x",
+    "pnpm": "10.x"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @stackup/web dev",
+    "build": "pnpm --recursive build",
+    "lint": "pnpm --recursive lint",
+    "typecheck": "pnpm --recursive typecheck",
+    "test": "pnpm --recursive test"
+  }
+}

@@ -1,18 +1,18 @@
 {
-  "status": "arc-testnet-template",
+  "status": "arc-testnet-live",
   "canonical": true,
-  "notes": "StackUp Arc testnet manifest. Frontend and SDKs must read this file. Fill after forge script broadcast. Gas is paid in USDC on Arc.",
+  "notes": "StackUp Arc testnet deployment 2026-09-26. Frontend and SDKs must read this file. Gas is paid in USDC on Arc. Mock equities (no issuer backing) with $200 admin-set test marks.",
   "network": "arc-testnet",
   "chainId": 5042002,
   "rpc": "https://rpc.testnet.arc.io",
   "explorer": "https://testnet.arcscan.app",
-  "deployer": "0x0000000000000000000000000000000000000000",
+  "deployer": "0x6B31DB6bF82654498d6Cc3fB3aDe7779E5672686",
   "contracts": {
-    "stackUp": "0x0000000000000000000000000000000000000000",
-    "stackVault": "0x0000000000000000000000000000000000000000"
+    "stackUp": "0xf3155d27a9cbbce18e4618b8562e69ded0058329",
+    "stackVault": "0xb147d1f4284d1f0f075244237e2b91fb0c0d1699"
   },
   "shared": {
-    "usdc": "0x0000000000000000000000000000000000000000",
+    "usdc": "0x8f34ae9c5afe4c8ced8aad1038e8f03e38314227",
     "borrowAprBps": 1000,
     "maintenanceEquityRatioBps": 3000
   },
@@ -21,17 +21,17 @@
       "name": "sNVDA",
       "symbol": "NVDA",
       "assetId": 1,
-      "stock": "0x0000000000000000000000000000000000000000",
-      "priceAdapter": "0x0000000000000000000000000000000000000000",
-      "swapAdapter": "0x0000000000000000000000000000000000000000"
+      "stock": "0x493aea8c0483999594adc73739debc1d81bd04ab",
+      "priceAdapter": "0xa963989e1bfc6dd711ee1000bd04f52de624f1fd",
+      "swapAdapter": "0xadf9614dec5ec834582c25b0d74da12a07446c9c"
     },
     {
       "name": "sAAPL",
       "symbol": "AAPL",
       "assetId": 2,
-      "stock": "0x0000000000000000000000000000000000000000",
-      "priceAdapter": "0x0000000000000000000000000000000000000000",
-      "swapAdapter": "0x0000000000000000000000000000000000000000"
+      "stock": "0x2b9ad64f70f22d5ef405baf3fa11d02bb5fa5e33",
+      "priceAdapter": "0xdbaae44bea975a2656a7002056174bbe23dae4c1",
+      "swapAdapter": "0xe3ce733103df4b87295c4858ba8acb314047f8b9"
     }
   ]
 }

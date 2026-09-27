@@ -7,6 +7,8 @@ out/
 contracts/lib/
 contracts/out/
 contracts/cache/
+contracts/chunks/
+contracts/gz/
 apps/web/.next/
 *.log
 *.tsbuildinfo

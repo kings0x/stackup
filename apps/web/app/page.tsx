@@ -27,10 +27,11 @@ export default function Portfolio() {
           const owner = (await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "ownerOf", args: [id] })) as Address;
           if (owner.toLowerCase() !== who.toLowerCase()) continue;
           const s = normStack(await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "stacks", args: [id] }));
+          const eff = (await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "effectiveStockOf", args: [id] }).catch(() => s.units)) as bigint;
           const hraw: any = await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "healthOf", args: [id] }).catch(() => null);
           const h = hraw ? normHealth(hraw) : null;
           const a = ASSETS.find((x) => x.assetId === s.assetId);
-          out.push({ id, asset: a?.name ?? `#${s.assetId}`, symbol: a?.symbol ?? "???", stock: fmtStock(s.stockAmount), debt: fmtUsdc(h ? h.debt : s.principal + s.accrued), nav: h ? fmtUsdc(h.nav) : "—", stage: h ? stageOf(h.nav, h.debt) : "stacked" });
+          out.push({ id, asset: a?.name ?? `#${s.assetId}`, symbol: a?.symbol ?? "???", stock: fmtStock(eff), debt: fmtUsdc(h ? h.debt : s.principal + s.accrued), nav: h ? fmtUsdc(h.nav) : "—", stage: h ? stageOf(h.nav, h.debt) : "stacked" });
         } catch {}
       }
       setRows(out);

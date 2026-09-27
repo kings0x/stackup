@@ -19,11 +19,12 @@ export default function StackPage({ params }: { params: Promise<{ id: string }> 
     const tokenId = BigInt(id);
     const owner = (await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "ownerOf", args: [tokenId] })) as Address;
     const s = normStack(await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "stacks", args: [tokenId] }));
+    const eff = (await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "effectiveStockOf", args: [tokenId] }).catch(() => s.units)) as bigint;
     const hraw: any = await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "healthOf", args: [tokenId] }).catch(() => null);
     const h = hraw ? normHealth(hraw) : null;
     const note = (await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "noteOf", args: [tokenId] }).catch(() => "")) as string;
     const a = ASSETS.find((x) => x.assetId === s.assetId);
-    setD({ owner, asset: a?.name, symbol: a?.symbol, stock: s.stockAmount, principal: s.principal, accrued: s.accrued, delegate: s.delegate, nav: h?.nav, debt: h ? h.debt : s.principal + s.accrued, unwindable: h?.unwindable ?? false, note });
+    setD({ owner, asset: a?.name, symbol: a?.symbol, stock: eff, shares: s.units, principal: s.principal, accrued: s.accrued, delegate: s.delegate, nav: h?.nav, debt: h ? h.debt : s.principal + s.accrued, unwindable: h?.unwindable ?? false, note });
   }
   useEffect(() => { load(); }, [id]);
 

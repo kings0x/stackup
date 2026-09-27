@@ -12,19 +12,31 @@ import {IStackVault, IStackPrice, IStackSwap} from "./interfaces/IStackModules.s
 /// @notice Custodies real spot stock, extends protocol USDC financing, mints one transferable Stack NFT per position.
 /// @dev Long-only, one stock per token. Financed opens draw from StackVault and buy more of the same stock.
 ///      Transfers carry stock + debt unchanged and clear the delegate. Liquidations are full, permissionless, unrewarded.
+///
+///      Custody modes per asset (chosen at listing, immutable):
+///      - RAW: `units` are raw token units (fixed-supply tokens, e.g. test mocks, B20-style where the
+///        feed is already total-return adjusted). Behavior is 1 unit = 1 token.
+///      - SHARE: `units` are pool shares for rebasing-capable tokens (e.g. Dinari dShares, whose balances
+///        change on stock splits). Effective balance = units * custodyBalance / poolShares, so splits
+///        (up or down) flow through pro-rata, no funds get stuck, and NAV stays honest.
+///      Payouts round DOWN; sub-unit dust remains in custody and slightly benefits remaining holders.
+///      Non-stock tokens received by this contract (e.g. USD+ dividend distributions to an unverified
+///      holder) never belong to any position and can be swept to treasury via `sweep`.
 contract StackUp is ERC721 {
     using SafeERC20 for IERC20;
 
     struct Listing {
         address stock;
+        uint8 stockDec;
         IStackPrice price;
         IStackSwap swap;
         bool openable;
+        bool shareMode;
     }
 
     struct Stack {
         uint256 assetId;
-        uint256 stockAmount;
+        uint256 units;
         uint256 principal;
         uint256 accrued;
         uint256 updatedAt;
@@ -53,6 +65,8 @@ contract StackUp is ERC721 {
     error OverLevered();
     error NotUnwindable();
     error NoteTooLong();
+    error ZeroShares();
+    error ProtectedToken();
 
     event StackOpened(uint256 indexed tokenId, address indexed owner, uint256 indexed assetId, uint256 stockAmount);
     event LoanDrawn(uint256 indexed tokenId, uint256 usdc);
@@ -63,8 +77,9 @@ contract StackUp is ERC721 {
     event StackUnwound(uint256 indexed tokenId, address indexed owner, uint256 stockSold, uint256 usdcOut);
     event ShortfallCovered(uint256 indexed tokenId, uint256 shortfall);
     event VaultLinked(address indexed vault);
-    event AssetListed(uint256 indexed assetId, address indexed stock);
+    event AssetListed(uint256 indexed assetId, address indexed stock, bool shareMode);
     event AssetGated(uint256 indexed assetId, bool openable);
+    event Swept(address indexed token, address indexed to, uint256 amount);
 
     uint256 public constant MAX_NOTE = 280;
     string public constant CARD_BASE = "https://stackup.fun/api/cards/";
@@ -80,6 +95,7 @@ contract StackUp is ERC721 {
     mapping(uint256 => Listing) private _listings;
     mapping(address => uint256) public idOf;
     mapping(address => bool) private _usedAdapter;
+    mapping(uint256 => uint256) public poolShares;
     uint256[] private _ids;
     uint256 private _nextId;
     uint256 private _nextAsset;
@@ -101,7 +117,13 @@ contract StackUp is ERC721 {
         emit VaultLinked(v);
     }
 
-    function listAsset(address stock, address price, address swap) external returns (uint256 assetId) {
+    function listAsset(
+        address stock,
+        uint8 stockDec,
+        address price,
+        address swap,
+        bool shareMode
+    ) external returns (uint256 assetId) {
         if (msg.sender != ADMIN) revert NotAdmin();
         if (stock == address(0) || price == address(0) || swap == address(0)) revert BadInput();
         if (idOf[stock] != 0 || _usedAdapter[price] || _usedAdapter[swap] || price == swap) revert BadInput();
@@ -109,12 +131,13 @@ contract StackUp is ERC721 {
         IStackSwap s = IStackSwap(swap);
         if (p.STOCK() != stock || s.STOCK() != stock || s.USDC() != address(USDC)) revert BadInput();
         assetId = ++_nextAsset;
-        _listings[assetId] = Listing({stock: stock, price: p, swap: s, openable: true});
+        _listings[assetId] =
+            Listing({stock: stock, stockDec: stockDec, price: p, swap: s, openable: true, shareMode: shareMode});
         idOf[stock] = assetId;
         _usedAdapter[price] = true;
         _usedAdapter[swap] = true;
         _ids.push(assetId);
-        emit AssetListed(assetId, stock);
+        emit AssetListed(assetId, stock, shareMode);
     }
 
     function gateAsset(uint256 assetId, bool openable) external {
@@ -122,6 +145,18 @@ contract StackUp is ERC721 {
         Listing storage l = _getListing(assetId);
         l.openable = openable;
         emit AssetGated(assetId, openable);
+    }
+
+    /// @notice Forward stray non-stock tokens (e.g. USD+ dividends paid to this unverified holder)
+    ///         to treasury. Listed stocks are protected: custody math owns them.
+    function sweep(address token, address to) external {
+        if (msg.sender != ADMIN) revert NotAdmin();
+        if (to == address(0)) revert BadInput();
+        if (idOf[token] != 0) revert ProtectedToken();
+        uint256 amt = IERC20(token).balanceOf(address(this));
+        if (amt == 0) revert NothingToPay();
+        IERC20(token).safeTransfer(to, amt);
+        emit Swept(token, to, amt);
     }
 
     function assetCount() external view returns (uint256) {
@@ -132,7 +167,24 @@ contract StackUp is ERC721 {
         return _getListing(assetId);
     }
 
+    /// @notice Effective token balance backing `units` of an asset (rebases included).
+    function effectiveStock(uint256 assetId, uint256 units) public view returns (uint256) {
+        Listing storage l = _getListing(assetId);
+        if (!l.shareMode) return units;
+        uint256 pool = poolShares[assetId];
+        if (pool == 0) return 0;
+        return Math.mulDiv(units, IERC20(l.stock).balanceOf(address(this)), pool, Math.Rounding.Floor);
+    }
+
+    /// @notice Effective token balance backing one position.
+    function effectiveStockOf(uint256 tokenId) public view returns (uint256) {
+        Stack storage st = _stacks[tokenId];
+        if (st.assetId == 0) return 0;
+        return effectiveStock(st.assetId, st.units);
+    }
+
     /// @notice Deposit stock, optionally stack leverage, mint the portrait NFT.
+    /// @dev `stockAmount` is raw tokens in, always. Stored units are raw (RAW mode) or pool shares (SHARE).
     function openStack(
         uint256 assetId,
         uint256 stockAmount,
@@ -146,24 +198,29 @@ contract StackUp is ERC721 {
         Listing storage l = _getListing(assetId);
         if (!l.openable) revert Closed();
 
-        IERC20(l.stock).safeTransferFrom(msg.sender, address(this), stockAmount);
+        IERC20 stock = IERC20(l.stock);
+        uint256 balBefore = stock.balanceOf(address(this));
+        stock.safeTransferFrom(msg.sender, address(this), stockAmount);
 
-        uint256 finalStock = stockAmount;
         uint256 loan;
         if (leverageBps == StackConfig.SPOT) {
             if (minOut != 0) revert BadInput();
         } else {
-            (finalStock, loan) = _stacked(l, stockAmount, leverageBps, minOut);
+            loan = _stacked(l, stockAmount, leverageBps, minOut);
         }
+
+        uint256 inflow = stock.balanceOf(address(this)) - balBefore;
+        if (inflow == 0) revert TooSmall();
+        uint256 units = _mintUnits(assetId, l, balBefore, inflow);
 
         tokenId = ++_nextId;
         Stack storage st = _stacks[tokenId];
         st.assetId = assetId;
-        st.stockAmount = finalStock;
+        st.units = units;
         st.updatedAt = block.timestamp;
         if (bytes(note).length != 0) noteOf[tokenId] = note;
 
-        emit StackOpened(tokenId, msg.sender, assetId, finalStock);
+        emit StackOpened(tokenId, msg.sender, assetId, inflow);
         if (loan != 0) {
             st.principal = loan;
             emit LoanDrawn(tokenId, loan);
@@ -181,14 +238,28 @@ contract StackUp is ERC721 {
         emit LoanRepaid(tokenId, pay);
     }
 
-    /// @notice Sell exact stock from this stack and waterfall proceeds into debt. LIVE pricing only.
+    /// @notice Sell exact EFFECTIVE stock from this stack and waterfall proceeds into debt. LIVE only.
     function trim(uint256 tokenId, uint256 stockAmount, uint256 minOut) external {
         (address owner, Stack storage st) = _manager(tokenId);
-        if (stockAmount == 0 || stockAmount > st.stockAmount) revert BadInput();
-        _accrue(st);
         Listing storage l = _getListing(st.assetId);
+        uint256 effective = effectiveStock(st.assetId, st.units);
+        if (stockAmount == 0 || stockAmount > effective) revert BadInput();
+        _accrue(st);
+
+        if (l.shareMode) {
+            uint256 pool = poolShares[st.assetId];
+            uint256 burn = Math.mulDiv(
+                stockAmount, pool, IERC20(l.stock).balanceOf(address(this)), Math.Rounding.Floor
+            );
+            if (burn == 0) revert ZeroShares();
+            if (burn > st.units) burn = st.units;
+            st.units -= burn;
+            poolShares[st.assetId] = pool - burn;
+        } else {
+            st.units -= stockAmount;
+        }
+
         IStackPrice.Quote memory q = _live(l.price);
-        st.stockAmount -= stockAmount;
         uint256 out = _sell(l, stockAmount, minOut, q.price);
         _settle(tokenId, st, owner, out);
         emit Trimmed(tokenId, stockAmount, out);
@@ -206,11 +277,12 @@ contract StackUp is ERC721 {
         address owner = _owner(tokenId);
         if (debtOf(tokenId) != 0) revert DebtLeft(debtOf(tokenId));
         Stack storage st = _stacks[tokenId];
-        uint256 amt = st.stockAmount;
-        address stock = _getListing(st.assetId).stock;
+        Listing storage l = _getListing(st.assetId);
+        uint256 amt = effectiveStock(st.assetId, st.units);
+        if (l.shareMode) poolShares[st.assetId] -= st.units;
         delete _stacks[tokenId];
         _burn(tokenId);
-        IERC20(stock).safeTransfer(owner, amt);
+        IERC20(l.stock).safeTransfer(owner, amt);
         emit StackClosed(tokenId, owner, amt);
     }
 
@@ -222,15 +294,17 @@ contract StackUp is ERC721 {
         _accrue(st);
         IStackPrice.Quote memory q = _live(l.price);
         uint256 d = st.principal + st.accrued;
-        if (!StackConfig.mustUnwind(l.price.valueUsdc(st.stockAmount, q.price), d)) revert NotUnwindable();
-        uint256 amt = st.stockAmount;
-        st.stockAmount = 0;
-        uint256 out = amt == 0 ? 0 : _sell(l, amt, 0, q.price);
+        uint256 eff = effectiveStock(st.assetId, st.units);
+        if (!StackConfig.mustUnwind(l.price.valueUsdc(eff, q.price), d)) revert NotUnwindable();
+        if (l.shareMode) poolShares[st.assetId] -= st.units;
+        st.units = 0;
+
+        uint256 out = eff == 0 ? 0 : _sell(l, eff, 0, q.price);
         uint256 short = _settle(tokenId, st, owner, out);
         if (short != 0) emit ShortfallCovered(tokenId, short);
         delete _stacks[tokenId];
         _burn(tokenId);
-        emit StackUnwound(tokenId, owner, amt, out);
+        emit StackUnwound(tokenId, owner, eff, out);
     }
 
     function debtOf(uint256 tokenId) public view returns (uint256) {
@@ -247,7 +321,7 @@ contract StackUp is ERC721 {
         Stack storage st = _stacks[tokenId];
         Listing storage l = _getListing(st.assetId);
         IStackPrice.Quote memory q = _live(l.price);
-        h.nav = l.price.valueUsdc(st.stockAmount, q.price);
+        h.nav = l.price.valueUsdc(effectiveStock(st.assetId, st.units), q.price);
         h.debt = st.principal + st.accrued + _pending(st);
         h.unwindable = StackConfig.mustUnwind(h.nav, h.debt);
     }
@@ -261,12 +335,27 @@ contract StackUp is ERC721 {
         if (from != address(0) && to != address(0) && from != to) _stacks[tokenId].delegate = address(0);
     }
 
+    function _mintUnits(
+        uint256 assetId,
+        Listing storage l,
+        uint256 balBefore,
+        uint256 inflow
+    ) private returns (uint256 units) {
+        if (!l.shareMode) return inflow;
+        uint256 pool = poolShares[assetId];
+        units = (pool == 0 || balBefore == 0)
+            ? inflow
+            : Math.mulDiv(inflow, pool, balBefore, Math.Rounding.Floor);
+        if (units == 0) revert ZeroShares();
+        poolShares[assetId] = pool + units;
+    }
+
     function _stacked(
         Listing storage l,
         uint256 deposit,
         uint256 lev,
         uint256 minOut
-    ) private returns (uint256 finalStock, uint256 loan) {
+    ) private returns (uint256 loan) {
         if (address(vault) == address(0)) revert PoolUnset();
         IStackPrice.Quote memory q = _live(l.price);
         uint256 contrib = l.price.valueUsdc(deposit, q.price);
@@ -277,8 +366,7 @@ contract StackUp is ERC721 {
         USDC.forceApprove(address(l.swap), loan);
         uint256 bought = l.swap.buy(loan, minOut, q.price);
         USDC.forceApprove(address(l.swap), 0);
-        finalStock = deposit + bought;
-        uint256 nav = l.price.valueUsdc(finalStock, q.price);
+        uint256 nav = l.price.valueUsdc(deposit + bought, q.price);
         if (loan >= nav || nav * StackConfig.BPS > (nav - loan) * lev) revert OverLevered();
     }
 

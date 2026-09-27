@@ -1,12 +1,13 @@
-# Equity issuers on Arc — research note (2026-09-27)
+# Equity issuers on Arc — research note (2026-09-27, Dinari correction 2026-09-28)
 
-Verdict: **no tokenized-equity issuer is live on Arc mainnet or testnet today.**
-StackUp stays on mocks until one of the triggers below fires. Recheck monthly.
+Verdict: **Dinari dShares are live on Arc mainnet (2026-09-16).** No one else is.
+See `DINARI.md` for mechanics + the custody fix they required (shipped).
 
 ## Issuer × Arc status
 
 | Issuer | Product | Chains live | On Arc? |
 |---|---|---|---|
+| **Dinari** | **dShares (`XXX.d`), 700+ stocks/ETFs, full S&P 500** | **Ethereum, Avalanche, Arbitrum, Base + Arc** | **YES (mainnet)** |
 | Coinbase | B20 (NVDAc, AAPLc, METAc, GOOGLc) | Base only | No |
 | Ondo (Global Markets / Ondo Stocks) | `XXXon` total-return trackers, 440+ assets, ~$1B TVL | Ethereum, BNB Chain, Solana | No |
 | Backed / Kraken (xStocks) | `XXXx` 1:1 tracker certs, 60–100+ assets, $25B+ volume | Solana, Ethereum, Mantle, TON, Ink (+Arbitrum via xChange RFQ) | No |

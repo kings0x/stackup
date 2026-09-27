@@ -18,10 +18,11 @@ export default function Explore() {
           try {
             const owner = (await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "ownerOf", args: [id] })) as Address;
             const s = normStack(await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "stacks", args: [id] }));
+            const eff = (await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "effectiveStockOf", args: [id] }).catch(() => s.units)) as bigint;
             const hraw: any = await c.readContract({ address: STACK_UP, abi: stackUpAbi, functionName: "healthOf", args: [id] }).catch(() => null);
             const h = hraw ? normHealth(hraw) : null;
             const a = ASSETS.find((x) => x.assetId === s.assetId);
-            out.push({ id: String(id), owner, asset: a?.name ?? "", symbol: a?.symbol ?? "", stock: fmtStock(s.stockAmount), stage: h ? stageOf(h.nav, h.debt) : "stacked" });
+            out.push({ id: String(id), owner, asset: a?.name ?? "", symbol: a?.symbol ?? "", stock: fmtStock(eff), stage: h ? stageOf(h.nav, h.debt) : "stacked" });
           } catch { /* burned */ }
         }
         setRows(out);

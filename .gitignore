@@ -7,7 +7,7 @@ out/
 contracts/lib/
 contracts/out/
 contracts/cache/
-contracts/broadcast/
 apps/web/.next/
 *.log
+*.tsbuildinfo
 .DS_Store

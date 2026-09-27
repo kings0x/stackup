@@ -6,6 +6,10 @@
   "chainId": 5042002,
   "rpc": "https://rpc.testnet.arc.io",
   "explorer": "https://testnet.arcscan.app",
+  "sourceVerification": {
+    "stackUp": "verified-via-blockscout-flattened (solc 0.8.29, cancun, 1M runs, MIT) 2026-09-28",
+    "allContracts": "verified on Sourcify (chain 5042002, exact match, 12/12) 2026-09-28"
+  },
   "deployer": "0x6B31DB6bF82654498d6Cc3fB3aDe7779E5672686",
   "contracts": {
     "stackUp": "0xb823dd1180dd8d31493614b86f19e0a7d282c28d",

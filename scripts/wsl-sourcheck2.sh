@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+for a in 0xb823Dd1180dD8d31493614b86F19e0A7D282C28d 0x6f1c3aa1356842d8df38e7c6ec0bf96badd95456 0xc41e67a92364353edbb6f9ee0537f8d685562628 0xb618a3e8302a29a94b069fb2ef95ba1e2b0db747 0xab60b01554301eb77ad2363cf29bf0513e66310e 0x6479229e3fe2ddb4c3e8faaf844b0e86a8f8f988 0x289e74b87341060040293feb79841ad713de95b6 0xe69050a8290755c6382c882cd9fa201794367bc9 0x61e5516ac41b70728866ab8ecd0f8efb008e6b5f 0x720cf35d75c1a3a5fb3c2faffed2475bbbd0889e 0xa3e2504a63a6f3d53fdf0b4dc40c2a6a099f0832 0xe28ee0ec0731e108a69acdbf0f23ef0e9224920f; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "https://sourcify.dev/server/v2/contract/5042002/$a")
+  echo "$code $a"
+done
+echo SOURCIFY_CHECK_DONE

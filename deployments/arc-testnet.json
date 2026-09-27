@@ -47,6 +47,18 @@
       "stock": "0x6479229e3fe2ddb4c3e8faaf844b0e86a8f8f988",
       "priceAdapter": "0x61e5516ac41b70728866ab8ecd0f8efb008e6b5f",
       "swapAdapter": "0xe28ee0ec0731e108a69acdbf0f23ef0e9224920f"
+    },
+    {
+      "name": "tNVDA.d",
+      "symbol": "NVDA.d",
+      "assetId": 4,
+      "mode": "SHARE",
+      "kind": "dinari-port",
+      "stock": "0x29602a5895faB2C015a4840deFF5E0550B990385",
+      "stockDec": 18,
+      "priceAdapter": "0xf54940fff75fd769c3b977a6232a160446b190f9",
+      "swapAdapter": "0x0af24bc2581ce1278b4e4f86319557feafcbb95d",
+      "restrictor": "0x4c204f9b4ff90f390cc03ecbcb8b3f256713c475"
     }
   ],
   "acceptance": {

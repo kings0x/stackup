@@ -16,6 +16,9 @@ export const stackUpAbi = parseAbi([
   "function noteOf(uint256 tokenId) view returns (string)",
   "function ownerOf(uint256 tokenId) view returns (address)",
   "function balanceOf(address owner) view returns (uint256)",
+  "function poolShares(uint256 assetId) view returns (uint256)",
+  "function vault() view returns (address)",
+  "function listing(uint256 assetId) view returns (address stock, uint8 stockDec, address price, address swap, bool openable, bool shareMode)",
   "event StackOpened(uint256 indexed tokenId, address indexed owner, uint256 indexed assetId, uint256 stockAmount)",
   "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
 ]);
@@ -25,4 +28,14 @@ export const erc20Abi = parseAbi([
   "function allowance(address owner, address spender) view returns (uint256)",
   "function balanceOf(address owner) view returns (uint256)",
   "function decimals() view returns (uint8)",
+]);
+
+export const stackVaultAbi = parseAbi([
+  "function USDC() view returns (address)",
+  "function available() view returns (uint256)",
+]);
+
+export const stackPriceAbi = parseAbi([
+  "function latest() view returns (uint8 state, uint256 price, uint256 updatedAt)",
+  "function valueUsdc(uint256 stockAmount, uint256 price) view returns (uint256)",
 ]);

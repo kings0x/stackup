@@ -9,6 +9,11 @@ contracts/out/
 contracts/cache/
 contracts/chunks/
 contracts/gz/
+extern/dshare/lib/
+extern/dshare/sbt/
+extern/dshare/sbt-keep/
+extern/dshare/out/
+extern/dshare/cache/
 apps/web/.next/
 *.log
 *.tsbuildinfo
